@@ -94,7 +94,7 @@ class RedditClient:
         Returns:
             List of raw post data dicts
         """
-        url = f"https://www.reddit.com/r/{subreddit_name}/top.json"
+        url = f"https://old.reddit.com/r/{subreddit_name}/top.json"
         data = self._get(url, params={"t": time_filter, "limit": limit})
         return self._extract_posts(data)
 
@@ -113,7 +113,7 @@ class RedditClient:
         Returns:
             List of raw post data dicts
         """
-        url = f"https://www.reddit.com/r/{subreddit_name}/hot.json"
+        url = f"https://old.reddit.com/r/{subreddit_name}/hot.json"
         data = self._get(url, params={"limit": limit})
         return self._extract_posts(data)
 
@@ -132,7 +132,7 @@ class RedditClient:
         Returns:
             List of raw post data dicts
         """
-        url = f"https://www.reddit.com/r/{subreddit_name}/new.json"
+        url = f"https://old.reddit.com/r/{subreddit_name}/new.json"
         data = self._get(url, params={"limit": limit})
         return self._extract_posts(data)
 
@@ -152,9 +152,9 @@ class RedditClient:
             Raw post data dict, or empty dict if not found
         """
         if subreddit:
-            url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
+            url = f"https://old.reddit.com/r/{subreddit}/comments/{post_id}.json"
         else:
-            url = f"https://www.reddit.com/comments/{post_id}.json"
+            url = f"https://old.reddit.com/comments/{post_id}.json"
 
         # Response is [post_listing, comments_listing]
         data = self._get(url, params={"limit": 1})
@@ -178,7 +178,7 @@ class RedditClient:
         Returns:
             List of raw comment data dicts sorted by score (descending)
         """
-        url = f"https://www.reddit.com/r/{subreddit}/comments/{post_id}.json"
+        url = f"https://old.reddit.com/r/{subreddit}/comments/{post_id}.json"
         # depth=1 skips nested replies; sort=top returns highest-scored first
         data = self._get(url, params={"limit": limit, "sort": "top", "depth": 1})
 

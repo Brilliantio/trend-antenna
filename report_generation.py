@@ -215,6 +215,12 @@ if __name__ == "__main__":
         default=0,
         help="Schedule interval in hours (0 = run once)",
     )
+    parser.add_argument(
+        "--hours",
+        type=int,
+        default=168,
+        help="Number of hours to look back for posts (default: 168 = 1 week)",
+    )
     args = parser.parse_args()
 
     if args.interval > 0:
@@ -223,4 +229,5 @@ if __name__ == "__main__":
         generate_report(
             skip_mongodb=args.skip_mongodb,
             brand_keys=args.brands,
+            hours=args.hours,
         )
