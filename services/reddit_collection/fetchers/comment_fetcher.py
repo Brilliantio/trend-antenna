@@ -1,7 +1,7 @@
 """
 Comment Fetcher
 
-This module handles fetching comments from Reddit posts.
+This module handles fetching comments from Reddit posts via the public JSON API.
 Responsible for retrieving top comments sorted by score.
 """
 
@@ -25,36 +25,31 @@ class CommentFetcher:
         """
         self.client = client
 
-    def fetch_top_comments(self, post_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def fetch_top_comments(
+        self,
+        post_id: str,
+        subreddit: str,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
         """
         Fetch top comments for a post sorted by score.
 
         Args:
             post_id: Reddit post ID
+            subreddit: Subreddit name (required for the JSON endpoint)
             limit: Maximum number of comments to return
 
         Returns:
             List of comment dictionaries sorted by score (descending)
         """
-        logger.info(f"Fetching top {limit} comments for post {post_id}")
+        logger.info(f"Fetching top {limit} comments for post {post_id} in r/{subreddit}")
 
         try:
-            # Get the submission
-            submission = self.client.get_submission(post_id)
+            raw_comments = self.client.get_comments(post_id, subreddit, limit)
 
-            # IMPORTANT: Set comment_sort BEFORE accessing any post attributes
-            # This must happen before PRAW lazy-loads the comments
-            submission.comment_sort = "top"
-
-            # Replace more comments (limit=0 means don't expand "load more")
-            submission.comments.replace_more(limit=0)
-
-            # Get top comments (already sorted by score due to comment_sort="top")
             comments = []
-            for comment in list(submission.comments)[:limit]:
-                # Convert PRAW comment to RedditComment
-                reddit_comment = RedditComment.from_praw(comment)
-                # Convert to dict for compatibility with existing code
+            for comment_data in raw_comments:
+                reddit_comment = RedditComment.from_json(comment_data)
                 comments.append(reddit_comment.to_dict())
 
             logger.info(f"Successfully fetched {len(comments)} comments for post {post_id}")
@@ -67,23 +62,25 @@ class CommentFetcher:
     def fetch_comments_for_posts(
         self,
         post_ids: List[str],
-        limit: int = 10
+        subreddit: str,
+        limit: int = 10,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Fetch top comments for multiple posts.
+        Fetch top comments for multiple posts in the same subreddit.
 
         Args:
             post_ids: List of Reddit post IDs
+            subreddit: Subreddit name
             limit: Maximum number of comments per post
 
         Returns:
             Dictionary mapping post_id to list of comments
         """
-        logger.info(f"Fetching comments for {len(post_ids)} posts")
+        logger.info(f"Fetching comments for {len(post_ids)} posts in r/{subreddit}")
 
         comments_by_post = {}
         for post_id in post_ids:
-            comments = self.fetch_top_comments(post_id, limit)
+            comments = self.fetch_top_comments(post_id, subreddit, limit)
             comments_by_post[post_id] = comments
 
         logger.info(f"Successfully fetched comments for {len(comments_by_post)} posts")

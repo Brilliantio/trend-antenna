@@ -2,7 +2,8 @@
 Reddit Data Models
 
 This module defines data models for Reddit posts and comments using dataclasses.
-Provides a unified interface for converting between PRAW objects and dictionaries.
+Provides a unified interface for converting between Reddit JSON API responses
+and the internal data shape consumed by the rest of the pipeline.
 """
 
 from dataclasses import dataclass, field
@@ -28,22 +29,22 @@ class RedditComment:
     dropped_from_top: Optional[datetime] = None
 
     @classmethod
-    def from_praw(cls, comment) -> 'RedditComment':
+    def from_json(cls, data: Dict[str, Any]) -> 'RedditComment':
         """
-        Create a RedditComment from a PRAW comment object.
+        Create a RedditComment from a Reddit JSON API comment data dict.
 
         Args:
-            comment: PRAW comment object
+            data: Comment data dict from Reddit's public JSON endpoint
 
         Returns:
             RedditComment instance
         """
         return cls(
-            comment_id=comment.id,
-            author=str(comment.author) if comment.author else "[deleted]",
-            created_utc=datetime.fromtimestamp(comment.created_utc),
-            score=comment.score,
-            body=comment.body
+            comment_id=data.get("id", ""),
+            author=data.get("author") or "[deleted]",
+            created_utc=datetime.fromtimestamp(data.get("created_utc", 0)),
+            score=data.get("score", 0),
+            body=data.get("body", ""),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -95,32 +96,37 @@ class RedditPost:
     last_updated: Optional[datetime] = None
 
     @classmethod
-    def from_praw(cls, post, category: str = "general") -> 'RedditPost':
+    def from_json(cls, data: Dict[str, Any], category: str = "general") -> 'RedditPost':
         """
-        Create a RedditPost from a PRAW submission object.
+        Create a RedditPost from a Reddit JSON API post data dict.
 
         Args:
-            post: PRAW submission object
+            data: Post data dict from Reddit's public JSON endpoint
             category: Post category (default: "general")
 
         Returns:
             RedditPost instance
         """
+        permalink = data.get("permalink", "")
+        if permalink and not permalink.startswith("http"):
+            permalink = f"https://www.reddit.com{permalink}"
+
+        is_self = data.get("is_self", False)
         return cls(
-            post_id=post.id,
-            title=post.title,
-            author=str(post.author) if post.author else "[deleted]",
-            created_utc=datetime.fromtimestamp(post.created_utc),
-            score=post.score,
-            upvote_ratio=post.upvote_ratio,
-            num_comments=post.num_comments,
-            permalink=f"https://www.reddit.com{post.permalink}",
-            url=post.url,
-            is_self=post.is_self,
-            selftext=post.selftext if post.is_self else "",
-            subreddit=post.subreddit.display_name,
-            link_flair_text=post.link_flair_text,
-            category=category
+            post_id=data.get("id", ""),
+            title=data.get("title", ""),
+            author=data.get("author") or "[deleted]",
+            created_utc=datetime.fromtimestamp(data.get("created_utc", 0)),
+            score=data.get("score", 0),
+            upvote_ratio=data.get("upvote_ratio", 0.0),
+            num_comments=data.get("num_comments", 0),
+            permalink=permalink,
+            url=data.get("url", ""),
+            is_self=is_self,
+            selftext=data.get("selftext", "") if is_self else "",
+            subreddit=data.get("subreddit", ""),
+            link_flair_text=data.get("link_flair_text"),
+            category=category,
         )
 
     def to_dict(self) -> Dict[str, Any]:

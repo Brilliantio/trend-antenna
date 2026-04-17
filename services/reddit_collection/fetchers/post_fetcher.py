@@ -46,14 +46,11 @@ class PostFetcher:
 
         try:
             posts = []
-            submissions = self.client.get_top_posts(subreddit, time_filter, limit)
+            post_dicts = self.client.get_top_posts(subreddit, time_filter, limit)
 
-            for submission in submissions:
-                # Determine category from flair
-                category = self._determine_category(submission)
-
-                # Convert to RedditPost
-                post = RedditPost.from_praw(submission, category=category)
+            for post_data in post_dicts:
+                category = self._determine_category(post_data)
+                post = RedditPost.from_json(post_data, category=category)
                 posts.append(post)
 
             logger.info(f"Successfully fetched {len(posts)} posts from r/{subreddit}")
@@ -78,11 +75,11 @@ class PostFetcher:
 
         try:
             posts = []
-            submissions = self.client.get_hot_posts(subreddit, limit)
+            post_dicts = self.client.get_hot_posts(subreddit, limit)
 
-            for submission in submissions:
-                category = self._determine_category(submission)
-                post = RedditPost.from_praw(submission, category=category)
+            for post_data in post_dicts:
+                category = self._determine_category(post_data)
+                post = RedditPost.from_json(post_data, category=category)
                 posts.append(post)
 
             logger.info(f"Successfully fetched {len(posts)} hot posts from r/{subreddit}")
@@ -107,11 +104,11 @@ class PostFetcher:
 
         try:
             posts = []
-            submissions = self.client.get_new_posts(subreddit, limit)
+            post_dicts = self.client.get_new_posts(subreddit, limit)
 
-            for submission in submissions:
-                category = self._determine_category(submission)
-                post = RedditPost.from_praw(submission, category=category)
+            for post_data in post_dicts:
+                category = self._determine_category(post_data)
+                post = RedditPost.from_json(post_data, category=category)
                 posts.append(post)
 
             logger.info(f"Successfully fetched {len(posts)} new posts from r/{subreddit}")
@@ -121,12 +118,13 @@ class PostFetcher:
             logger.error(f"Error fetching new posts from r/{subreddit}: {e}")
             return []
 
-    def fetch_post_by_id(self, post_id: str) -> RedditPost:
+    def fetch_post_by_id(self, post_id: str, subreddit: str = None) -> RedditPost:
         """
         Fetch a single post by ID.
 
         Args:
             post_id: Reddit post ID
+            subreddit: Subreddit name (optional; makes lookup more efficient)
 
         Returns:
             RedditPost object or None if not found
@@ -134,9 +132,9 @@ class PostFetcher:
         logger.info(f"Fetching post by ID: {post_id}")
 
         try:
-            submission = self.client.get_submission(post_id)
-            category = self._determine_category(submission)
-            post = RedditPost.from_praw(submission, category=category)
+            post_data = self.client.get_submission(post_id, subreddit=subreddit)
+            category = self._determine_category(post_data)
+            post = RedditPost.from_json(post_data, category=category)
 
             logger.info(f"Successfully fetched post {post_id}")
             return post
@@ -145,19 +143,15 @@ class PostFetcher:
             logger.error(f"Error fetching post {post_id}: {e}")
             return None
 
-    def _determine_category(self, submission) -> str:
+    def _determine_category(self, post_data: dict) -> str:
         """
         Determine the category of a post based on its flair.
 
         Args:
-            submission: PRAW submission object
+            post_data: Raw post data dict from Reddit JSON API
 
         Returns:
             Category string (flair text or 'general')
         """
-        # Use flair text as category if available
-        if submission.link_flair_text:
-            return submission.link_flair_text
-
-        # Default category
-        return "general"
+        flair = post_data.get("link_flair_text")
+        return flair if flair else "general"
