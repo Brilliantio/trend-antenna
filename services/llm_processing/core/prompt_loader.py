@@ -76,13 +76,17 @@ class PromptLoader:
         Get the report generation prompt for a specific language.
 
         Args:
-            language: Language code ('en' or 'zh')
+            language: Language code (currently 'en' only)
             context: Dictionary containing:
                 - current_date: Date string for the report
                 - trending_table: Markdown table of trending posts
                 - weekly_table: Markdown table of weekly posts
                 - monthly_table: Markdown table of monthly posts
                 - community_tables: Markdown tables of community posts
+                - brand_name: Name of the brand
+                - brand_focus: Focus description for the brand
+                - subreddits: Comma-separated list of subreddit names
+                - post_count: Number of posts analysed
 
         Returns:
             Rendered prompt string

@@ -406,65 +406,45 @@ class BaseLLMClient(ABC):
                        weekly_posts: Optional[List[Dict[str, Any]]] = None,
                        monthly_posts: Optional[List[Dict[str, Any]]] = None,
                        language: str = "en",
-                       reference_date: Optional[datetime] = None) -> str:
+                       reference_date: Optional[datetime] = None,
+                       brand_name: str = "",
+                       brand_focus: str = "",
+                       brand_subreddits: Optional[List[str]] = None) -> str:
         """
-        Generate a report from Reddit posts using the LLM API.
+        Generate a book-concept signal report from Reddit posts using the LLM API.
 
         Args:
-            posts: List of post dictionaries (24-hour trending posts)
+            posts: List of post dictionaries (recent posts)
             previous_report: Previous report data for comparison
             weekly_posts: List of weekly popular posts
             monthly_posts: List of monthly popular posts
-            language: Language for the report ('en' for English, 'zh' for Chinese)
-            reference_date: Optional specific date to generate report for (defaults to current date)
+            language: Language for the report (currently 'en' only)
+            reference_date: Optional specific date to generate report for
+            brand_name: Name of the Brilliantio brand
+            brand_focus: Focus description for the brand
+            brand_subreddits: List of subreddits for this brand
 
         Returns:
             Generated report as a string
         """
-        logger.info(f"Generating report from {len(posts)} posts in {language} language")
+        logger.info(f"Generating report for brand '{brand_name}' from {len(posts)} posts")
 
-        # Use reference date or current date
         report_date = reference_date if reference_date is not None else datetime.now()
         current_date = report_date.strftime("%Y-%m-%d")
 
-        # Create monthly popular posts table if provided
+        # Create post tables
         monthly_table = ""
         if monthly_posts:
             monthly_table = self._create_monthly_popular_table(monthly_posts, previous_report)
 
-        # Create weekly popular posts table if provided
         weekly_table = ""
         if weekly_posts:
             weekly_table = self._create_weekly_popular_table(weekly_posts, previous_report)
 
-        # Create trending posts table
         trending_table = self._create_trending_posts_table(posts)
-
-        # Create community top posts tables
         community_tables = self._create_community_top_posts_tables(posts)
 
-        # Define language-specific content
-        if language == "zh":
-            section_headers = {
-                "report_title": f"# Reddit AI 趋势报告 - {current_date}",
-                "trending_posts": "## 今日热门帖子",
-                "weekly_posts": "## 本周热门帖子",
-                "monthly_posts": "## 本月热门帖子",
-                "community_posts": "## 各社区本周热门帖子",
-                "trend_analysis": "## 趋势分析"
-            }
-        else:
-            section_headers = {
-                "report_title": f"# Reddit AI Trend Report - {current_date}",
-                "trending_posts": "## Today's Trending Posts",
-                "weekly_posts": "## Weekly Popular Posts",
-                "monthly_posts": "## Monthly Popular Posts",
-                "community_posts": "## Top Posts by Community (Past Week)",
-                "trend_analysis": "## Trend Analysis"
-            }
-
         # Prepare posts with additional context (images/comments) for LLM
-        # Collect from daily, weekly, and monthly posts
         all_posts_sources = [posts]
         if weekly_posts:
             all_posts_sources.append(weekly_posts)
@@ -477,11 +457,9 @@ class BaseLLMClient(ABC):
         for post_source in all_posts_sources:
             for post in post_source:
                 post_id = post.get('post_id')
-                # Skip duplicates
                 if post_id and post_id in seen_post_ids:
                     continue
 
-                # Include posts with photo_parse, youtube_transcript_summary, web_content_summary, or comments
                 has_photo = 'photo_parse' in post and post['photo_parse']
                 has_youtube = 'youtube_transcript_summary' in post and post['youtube_transcript_summary']
                 has_web_content = 'web_content_summary' in post and post['web_content_summary']
@@ -490,56 +468,44 @@ class BaseLLMClient(ABC):
                 if has_photo or has_youtube or has_web_content or has_comments:
                     seen_post_ids.add(post_id)
 
-                    # Build structured context
                     context_item = {
                         "post_id": post_id,
                         "title": post.get('title', 'N/A'),
                         "subreddit": post.get('subreddit', 'N/A'),
                         "url": post.get('url', ''),
                         "score": post.get('score', 0),
-                        "num_comments": post.get('num_comments', 0)
+                        "num_comments": post.get('num_comments', 0),
                     }
 
-                    # Add image description if available
                     if has_photo:
                         context_item["image_description"] = post['photo_parse']
-
-                    # Add YouTube transcript summary if available
                     if has_youtube:
                         context_item["youtube_summary"] = post['youtube_transcript_summary']
-
-                    # Add web content summary if available
                     if has_web_content:
                         context_item["web_content_summary"] = post['web_content_summary']
 
-                    # Add filtered comments if available
                     if has_comments:
-                        # Filter out bot comments
                         filtered_comments = CommentFilter.filter_bot_comments(post['comments'])
-                        # Also filter very short comments
                         filtered_comments = CommentFilter.filter_short_comments(filtered_comments, min_length=20)
-
-                        # Take top 3 comments by score
                         top_comments = sorted(filtered_comments, key=lambda c: c.get('score', 0), reverse=True)[:3]
-
                         if top_comments:
                             context_item["top_comments"] = [
                                 {
                                     "author": c.get('author', 'N/A'),
                                     "score": c.get('score', 0),
-                                    "body": c.get('body', '')[:300]  # Limit to 300 chars
+                                    "body": c.get('body', '')[:300],
                                 }
                                 for c in top_comments
                             ]
 
                     posts_with_context_structured.append(context_item)
 
-        # Limit to 15 posts to avoid token overflow
         posts_with_context_structured = posts_with_context_structured[:15]
         logger.info(f"Prepared {len(posts_with_context_structured)} posts with additional context for LLM")
 
-        # Convert to formatted JSON string for better readability in prompt
         posts_with_context_json = json.dumps(posts_with_context_structured, indent=2, ensure_ascii=False)
+
+        subreddits_str = ", ".join(f"r/{s}" for s in (brand_subreddits or []))
 
         # Load prompt from Jinja2 template
         prompt_context = {
@@ -548,68 +514,33 @@ class BaseLLMClient(ABC):
             "weekly_table": weekly_table,
             "monthly_table": monthly_table,
             "community_tables": community_tables,
-            "posts_with_context_json": posts_with_context_json
+            "posts_with_context_json": posts_with_context_json,
+            "brand_name": brand_name,
+            "brand_focus": brand_focus,
+            "subreddits": subreddits_str,
+            "post_count": len(posts),
         }
         prompt = self.prompt_loader.get_report_prompt(language, prompt_context)
 
-        # Log the full prompt for debugging
-        logger.info(f"=" * 80)
-        logger.info(f"FULL PROMPT FOR LLM ({language}):")
-        logger.info(f"=" * 80)
-        logger.info(prompt)
-        logger.info(f"=" * 80)
         logger.info(f"Prompt length: {len(prompt)} characters")
-        logger.info(f"=" * 80)
 
         try:
-            # Generate the report using the abstract method
             report = self.generate_text(prompt)
-
-            # Clean the response
             report = self._clean_response(report)
 
-            # Add header and tables
-            full_report = f"{section_headers['report_title']}\n\n"
-            full_report += f"{section_headers['trending_posts']}\n\n"
-            full_report += trending_table.replace("## Trending Posts - Last 24 Hours\n\n", "") + "\n\n"
-            full_report += f"{section_headers['weekly_posts']}\n\n"
-            full_report += weekly_table.replace("## Weekly Popular Posts\n\n", "") + "\n\n"
-            full_report += f"{section_headers['monthly_posts']}\n\n"
-            full_report += monthly_table.replace("## Monthly Popular Posts\n\n", "") + "\n\n"
-            full_report += f"{section_headers['community_posts']}\n\n"
-            full_report += community_tables.replace("## Top Posts by Community\n\n", "") + "\n\n"
-            full_report += f"{section_headers['trend_analysis']}\n\n"
+            # Build the full report with frontmatter and markdown structure
+            subreddits_list = brand_subreddits or []
+            full_report = f"---\n"
+            full_report += f"brand: {brand_name}\n"
+            full_report += f"generated: {report_date.isoformat()}\n"
+            full_report += f"subreddits_analysed: {json.dumps(subreddits_list)}\n"
+            full_report += f"posts_analysed: {len(posts)}\n"
+            full_report += f"---\n\n"
+            full_report += f"# {brand_name} — Trend Antenna Report\n\n"
+            full_report += f"## Top 10 Problem Signals\n\n"
             full_report += report
 
             return full_report
         except Exception as e:
             logger.error(f"Error generating report: {e}")
             return f"Error generating report: {e}"
-
-    def generate_multilingual_reports(self, posts: List[Dict[str, Any]], previous_data: Optional[Dict[str, Any]] = None,
-                                     weekly_posts: Optional[List[Dict[str, Any]]] = None,
-                                     monthly_posts: Optional[List[Dict[str, Any]]] = None,
-                                     languages: List[str] = ["en", "zh"],
-                                     reference_date: Optional[datetime] = None) -> Dict[str, str]:
-        """
-        Generate reports in multiple languages.
-
-        Args:
-            posts: List of post dictionaries (24-hour trending posts)
-            previous_data: Optional dictionary containing previous report data for comparison
-            weekly_posts: List of weekly popular posts
-            monthly_posts: List of monthly popular posts
-            languages: List of language codes to generate reports for
-            reference_date: Optional specific date to generate report for (defaults to current date)
-
-        Returns:
-            Dictionary mapping language codes to generated reports
-        """
-        reports = {}
-
-        for lang in languages:
-            logger.info(f"Generating report in {lang} language")
-            report = self.generate_report(posts, previous_data, weekly_posts, monthly_posts, language=lang, reference_date=reference_date)
-            reports[lang] = report
-
-        return reports
