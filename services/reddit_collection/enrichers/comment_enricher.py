@@ -50,7 +50,7 @@ class CommentEnricher:
         should_fetch = self._should_fetch_comments(post, fetch_mode)
 
         if should_fetch:
-            comments = self.comment_fetcher.fetch_top_comments(post.post_id, limit)
+            comments = self.comment_fetcher.fetch_top_comments(post.post_id, post.subreddit, limit)
             post.comments = comments
             self.stats["fetched"] += 1
             logger.debug(f"Fetched {len(comments)} comments for post {post.post_id}")

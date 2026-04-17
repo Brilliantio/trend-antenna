@@ -29,6 +29,7 @@ Brand subreddit research is documented in `brands/`.
 - **English only**: Bilingual support removed for simplicity
 - **Smart caching**: MongoDB-backed caching for all enrichments
 - **LLM provider**: OpenRouter (free tier with DeepSeek R1)
+- **Unauthenticated Reddit fetcher**: Uses Reddit's public JSON API (`/r/{sub}/top.json`, `/r/{sub}/comments/{id}.json`) — no Reddit app registration or API credentials required. Rate limit is ~60 req/min; our weekly scrape of ~30 subreddits uses ~30 requests, well within budget. Requests are spaced 1.1 s apart with exponential-backoff retry on 429/503.
 
 ## Report Output
 
@@ -68,9 +69,10 @@ cp .env.example .env
 ```
 
 Required:
-- `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USER_AGENT` — Reddit API credentials
 - `OPENROUTER_API_KEY` — LLM provider (or `GROQ_API_KEY` for Groq)
 - `MONGODB_URI` — MongoDB connection string
+
+> **No Reddit credentials needed.** This fork uses Reddit's unauthenticated public JSON API, removing the requirement to create a Reddit API app.
 
 Optional:
 - `FIRECRAWL_API_KEY` — Web content analysis (500 free credits/month)
