@@ -6,10 +6,7 @@ services:
       - .env
     volumes:
       - ./reports:/app/reports
-    depends_on:
-      - mongodb
-    networks:
-      - trend_antenna_network
+    network_mode: host
 
   mongodb:
     image: mongo:7
@@ -19,12 +16,6 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    networks:
-      - trend_antenna_network
-
-networks:
-  trend_antenna_network:
-    driver: bridge
 
 volumes:
   mongodb_data:
