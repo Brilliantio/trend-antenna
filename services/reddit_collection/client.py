@@ -1,14 +1,18 @@
 """
 Reddit API Client
 
-Uses Reddit's public JSON endpoints (unauthenticated).
-No API app or Reddit credentials required.
+Uses Reddit's public JSON endpoints (unauthenticated) via a SOCKS proxy
+(Tor) to avoid datacenter IP blocking.
+
+When SOCKS_PROXY is set (e.g. socks5h://host.docker.internal:9050),
+requests are routed through it.  Falls back to direct connection if unset.
 
 Rate limit: ~60 requests/minute. We sleep 1.1s between requests to stay
 well within that budget. For a weekly scrape of ~30 subreddits we make
 ~30 requests total — far below the limit.
 """
 
+import os
 import time
 import logging
 import requests
@@ -16,7 +20,6 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded — unauthenticated calls don't need account-specific identification
 USER_AGENT = "Brilliantio-Trend-Antenna/0.1 (research project)"
 REQUEST_DELAY = 1.1   # seconds between requests (safe margin under 60/min)
 MAX_RETRIES = 3
@@ -29,6 +32,18 @@ class RedditClient:
         """Initialise the client. No credentials required."""
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": USER_AGENT})
+
+        # Configure SOCKS proxy if available (Tor)
+        socks_proxy = os.getenv("SOCKS_PROXY", "")
+        if socks_proxy:
+            self.session.proxies = {
+                "http": socks_proxy,
+                "https": socks_proxy,
+            }
+            logger.info(f"Reddit client using SOCKS proxy: {socks_proxy}")
+        else:
+            logger.info("Reddit client using direct connection (no proxy)")
+
         logger.info("Reddit unauthenticated JSON client initialised")
 
     def _get(self, url: str, params: Optional[Dict] = None) -> Any:
@@ -48,7 +63,7 @@ class RedditClient:
         for attempt in range(1, MAX_RETRIES + 1):
             try:
                 time.sleep(REQUEST_DELAY)
-                response = self.session.get(url, params=params, timeout=15)
+                response = self.session.get(url, params=params, timeout=30)
 
                 if response.status_code in (429, 503):
                     wait = 2 ** attempt

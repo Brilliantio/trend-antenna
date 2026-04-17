@@ -518,7 +518,7 @@ class MongoDBClient:
         try:
             # 创建报告数据
             report_data = {
-                "report_id": f"report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+                "report_id": f"report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}",
                 "timestamp": datetime.utcnow(),
                 "reports": reports,
                 "posts_data": posts,

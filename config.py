@@ -120,6 +120,9 @@ LLM_CONFIG = LLM_PROVIDERS.get(CURRENT_LLM_PROVIDER, LLM_PROVIDERS["openrouter"]
 # ---------------------------------------------------------------------------
 # Reddit Data Collection Configuration
 # ---------------------------------------------------------------------------
+# Categories to exclude from analysis (empty = no exclusions)
+EXCLUDED_CATEGORIES: list = []
+
 REDDIT_COLLECTION_CONFIG = {
     "fetch_comments": os.getenv("FETCH_COMMENTS", "smart").lower(),
     "top_comments_limit": int(os.getenv("TOP_COMMENTS_LIMIT", "5")),
