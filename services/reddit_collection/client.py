@@ -1,11 +1,12 @@
 """
 Reddit API Client
 
-Uses Reddit's public JSON endpoints (unauthenticated) via a SOCKS proxy
-(Tor) to avoid datacenter IP blocking.
+Uses Reddit's public JSON endpoints (unauthenticated) via a DataImpulse
+residential HTTP proxy to avoid datacenter IP blocking.
 
-When SOCKS_PROXY is set (e.g. socks5h://host.docker.internal:9050),
-requests are routed through it.  Falls back to direct connection if unset.
+When DATAIMPULSE_HOST / DATAIMPULSE_PORT / DATAIMPULSE_LOGIN /
+DATAIMPULSE_PASSWORD are set, all requests are routed through the proxy.
+Falls back to direct connection if any variable is unset.
 
 Rate limit: ~60 requests/minute. We sleep 1.1s between requests to stay
 well within that budget. For a weekly scrape of ~30 subreddits we make
@@ -33,16 +34,21 @@ class RedditClient:
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": USER_AGENT})
 
-        # Configure SOCKS proxy if available (Tor)
-        socks_proxy = os.getenv("SOCKS_PROXY", "")
-        if socks_proxy:
-            self.session.proxies = {
-                "http": socks_proxy,
-                "https": socks_proxy,
-            }
-            logger.info(f"Reddit client using SOCKS proxy: {socks_proxy}")
+        # Configure DataImpulse residential HTTP proxy
+        proxy_host = os.getenv("DATAIMPULSE_HOST", "")
+        proxy_port = os.getenv("DATAIMPULSE_PORT", "")
+        proxy_user = os.getenv("DATAIMPULSE_LOGIN", "")
+        proxy_pass = os.getenv("DATAIMPULSE_PASSWORD", "")
+
+        if proxy_host and proxy_port and proxy_user and proxy_pass:
+            proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+            self.session.proxies.update({
+                "http": proxy_url,
+                "https": proxy_url,
+            })
+            logger.info("Reddit client routing through DataImpulse residential proxy")
         else:
-            logger.info("Reddit client using direct connection (no proxy)")
+            logger.info("Reddit client using direct connection (no proxy configured)")
 
         logger.info("Reddit unauthenticated JSON client initialised")
 

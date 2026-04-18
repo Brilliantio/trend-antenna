@@ -4,9 +4,17 @@ services:
     container_name: trend_antenna_app
     env_file:
       - .env
+    environment:
+      - DATAIMPULSE_HOST=${DATAIMPULSE_HOST}
+      - DATAIMPULSE_PORT=${DATAIMPULSE_PORT}
+      - DATAIMPULSE_LOGIN=${DATAIMPULSE_LOGIN}
+      - DATAIMPULSE_PASSWORD=${DATAIMPULSE_PASSWORD}
     volumes:
       - ./reports:/app/reports
-    network_mode: host
+    depends_on:
+      - mongodb
+    networks:
+      - app_network
 
   mongodb:
     image: mongo:7
@@ -16,7 +24,13 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - app_network
 
 volumes:
   mongodb_data:
     driver: local
+
+networks:
+  app_network:
+    driver: bridge
