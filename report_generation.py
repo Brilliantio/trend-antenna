@@ -22,6 +22,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.reddit_collection.collector import RedditDataCollector
 from services.llm_processing.report_processor import ReportProcessor
+from services.kb_store import post_report_to_kb
 from database.mongodb import MongoDBClient
 from config import REPORT_CONFIG, BRANDS
 
@@ -146,6 +147,16 @@ def generate_report(
             filepath = os.path.join(report_dir, f"trend-antenna_{brand_key}_{timestamp}.md")
             report_paths[brand_key] = filepath
             logger.info(f"Report for '{brand_key}': {filepath}")
+
+            # Dual-write: POST report to Supabase KB store (non-fatal on failure)
+            if save_to_file:
+                post_report_to_kb(
+                    content=report.get("content", ""),
+                    brand_key=brand_key,
+                    brand_name=report.get("brand_name", brand_key),
+                    report_id=report.get("report_id", f"trend-antenna_{brand_key}_{timestamp}"),
+                    reference_date=current_time,
+                )
 
         # Save to MongoDB
         if save_to_db and not skip_mongodb:
