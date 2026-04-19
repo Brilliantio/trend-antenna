@@ -115,6 +115,7 @@ dmypy.json
 *_test.py
 test_*.py
 !test_kb_store.py
+!test_telegram.py
 *_test_*.py
 simple_test.py
 multilingual_test.py

@@ -23,6 +23,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services.reddit_collection.collector import RedditDataCollector
 from services.llm_processing.report_processor import ReportProcessor
 from services.kb_store import post_report_to_kb
+from services.telegram import post_digest_to_telegram
 from database.mongodb import MongoDBClient
 from config import REPORT_CONFIG, BRANDS
 
@@ -36,6 +37,22 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_top_signal(content: str) -> str | None:
+    """Return the first H2/H3 title after the H1 report header, truncated to 80 chars."""
+    seen_h1 = False
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not seen_h1:
+            if stripped.startswith("# "):
+                seen_h1 = True
+            continue
+        if stripped.startswith("## ") or stripped.startswith("### "):
+            title = stripped.lstrip("#").strip()
+            if title:
+                return title[:80]
+    return None
 
 
 def generate_report(
@@ -132,6 +149,7 @@ def generate_report(
 
         # Collect report file paths
         report_paths = {}
+        digest_lines: list[dict] = []
         timestamp = current_time.strftime("%Y%m%d_%H%M%S")
 
         for brand_key, report in reports.items():
@@ -148,14 +166,25 @@ def generate_report(
             report_paths[brand_key] = filepath
             logger.info(f"Report for '{brand_key}': {filepath}")
 
+            brand_name = report.get("brand_name", brand_key)
+            digest_lines.append({
+                "brand_key": brand_key,
+                "brand_name": brand_name,
+                "top_signal": _extract_top_signal(report.get("content", "")),
+            })
+
             # Dual-write: POST report to Supabase KB store (non-fatal on failure)
             if save_to_file:
                 post_report_to_kb(
                     content=report.get("content", ""),
                     brand_key=brand_key,
-                    brand_name=report.get("brand_name", brand_key),
+                    brand_name=brand_name,
                     reference_date=current_time,
                 )
+
+        # Send Telegram digest once per run (non-fatal on failure)
+        if save_to_file:
+            post_digest_to_telegram(digest_lines, current_time)
 
         # Save to MongoDB
         if save_to_db and not skip_mongodb:
