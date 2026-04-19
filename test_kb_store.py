@@ -17,7 +17,6 @@ REFERENCE_DATE = datetime(2026, 4, 18, 6, 0, 0)
 SAMPLE_CONTENT = "# Trend Antenna — Zero to Made — 2026-04-18\n\nSome signals here."
 SAMPLE_BRAND_KEY = "ztm"
 SAMPLE_BRAND_NAME = "Zero to Made"
-SAMPLE_REPORT_ID = "trend-antenna_ztm_20260418_060000"
 
 _BASE_ENV = {
     "KB_STORE_URL": "https://ufpmcvawhbflmvauwdez.supabase.co/functions/v1/store-document",
@@ -45,7 +44,6 @@ class TestPostReportToKbContract(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -59,7 +57,7 @@ class TestPostReportToKbContract(unittest.TestCase):
         self.assertEqual(payload["content"], SAMPLE_CONTENT)
         self.assertIn("trend-antenna", payload["tags"])
         self.assertIn("ztm", payload["tags"])
-        self.assertEqual(payload["source_key"], SAMPLE_REPORT_ID)
+        self.assertNotIn("source_key", payload)
 
     @patch("services.kb_store.requests.post")
     def test_authorization_header_uses_anon_key(self, mock_post):
@@ -70,7 +68,6 @@ class TestPostReportToKbContract(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -88,7 +85,6 @@ class TestPostReportToKbContract(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -117,7 +113,6 @@ class TestPostReportToKbAllBrands(unittest.TestCase):
                     content=SAMPLE_CONTENT,
                     brand_key=brand_key,
                     brand_name=brand_name,
-                    report_id=f"trend-antenna_{brand_key}_20260418_060000",
                     reference_date=REFERENCE_DATE,
                 )
                 self.assertTrue(result, f"Expected True for brand '{brand_key}'")
@@ -139,7 +134,6 @@ class TestPostReportToKbDryRun(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -156,7 +150,6 @@ class TestPostReportToKbDryRun(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -177,7 +170,6 @@ class TestPostReportToKbMissingConfig(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -194,7 +186,6 @@ class TestPostReportToKbMissingConfig(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -214,7 +205,6 @@ class TestPostReportToKbFailureHandling(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -229,7 +219,6 @@ class TestPostReportToKbFailureHandling(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -244,7 +233,6 @@ class TestPostReportToKbFailureHandling(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -259,7 +247,6 @@ class TestPostReportToKbFailureHandling(unittest.TestCase):
                 content=SAMPLE_CONTENT,
                 brand_key=SAMPLE_BRAND_KEY,
                 brand_name=SAMPLE_BRAND_NAME,
-                report_id=SAMPLE_REPORT_ID,
                 reference_date=REFERENCE_DATE,
             )
 
@@ -283,7 +270,6 @@ class TestPostReportToKbFailureHandling(unittest.TestCase):
                         content=SAMPLE_CONTENT,
                         brand_key=brand_key,
                         brand_name=brand_name,
-                        report_id=f"trend-antenna_{brand_key}_20260418_060000",
                         reference_date=REFERENCE_DATE,
                     )
                 )

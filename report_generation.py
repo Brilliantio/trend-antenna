@@ -154,7 +154,6 @@ def generate_report(
                     content=report.get("content", ""),
                     brand_key=brand_key,
                     brand_name=report.get("brand_name", brand_key),
-                    report_id=report.get("report_id", f"trend-antenna_{brand_key}_{timestamp}"),
                     reference_date=current_time,
                 )
 

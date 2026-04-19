@@ -24,15 +24,15 @@ def post_report_to_kb(
     content: str,
     brand_key: str,
     brand_name: str,
-    report_id: str,
     reference_date: datetime,
 ) -> bool:
     """POST a report to the Supabase KB store webhook.
 
-    Idempotency: `source_key` is set to the deterministic `report_id`
-    (e.g. ``trend-antenna_ztm_20260418_060000``). If the webhook dedupes
-    on this field, re-running the same report will not create a duplicate.
-    See PR description for the dedupe story.
+    Idempotency: not enforced. The `store-document` Edge Function performs an
+    unconditional INSERT — there is no dedup field. Weekly cron produces unique
+    `report_id` values (HHMMSS precision), so rerun-duplicates are a theoretical
+    concern only. If duplicates appear in practice, extend store-document to
+    upsert on `source` field (separate BRI).
 
     Failure handling: any non-2xx response or network exception is logged
     and returns False — callers must NOT raise on False; the overall run
@@ -42,7 +42,6 @@ def post_report_to_kb(
         content: Full markdown report body.
         brand_key: Brand slug — one of ``ztm``, ``tch``, ``gbq_cm``, ``fps``.
         brand_name: Human-readable brand name for the KB entry title.
-        report_id: Deterministic report ID used as ``source_key``.
         reference_date: Report reference date used in the KB entry title.
 
     Returns:
@@ -76,7 +75,6 @@ def post_report_to_kb(
         "title": f"Trend Antenna — {brand_name} — {date_str}",
         "content": content,
         "tags": ["trend-antenna", brand_key],
-        "source_key": report_id,
     }
     headers = {
         "Content-Type": "application/json",
@@ -92,8 +90,7 @@ def post_report_to_kb(
         )
         if 200 <= response.status_code < 300:
             logger.info(
-                "KB store: posted '%s' for brand '%s' (HTTP %d)",
-                report_id,
+                "KB store: posted report for brand '%s' (HTTP %d)",
                 brand_key,
                 response.status_code,
             )
