@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Telegram digest notification — weekly push after cron run completes.
 
 Sends a one-shot summary to a Telegram chat when all per-brand reports are
