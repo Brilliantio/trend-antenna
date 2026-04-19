@@ -20,7 +20,7 @@ SAMPLE_BRAND_NAME = "Zero to Made"
 SAMPLE_REPORT_ID = "trend-antenna_ztm_20260418_060000"
 
 _BASE_ENV = {
-    "KB_STORE_URL": "https://ufpmcvawhbflmvauwdez.supabase.co/functions/v1/webhook/knowledge/store",
+    "KB_STORE_URL": "https://ufpmcvawhbflmvauwdez.supabase.co/functions/v1/store-document",
     "SUPABASE_ANON_KEY": "test-anon-key",
     "KB_STORE_ENABLED": "true",
 }

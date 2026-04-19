@@ -4,7 +4,7 @@ After each per-brand markdown report is written to disk, POST it to the
 Supabase KB store webhook so M4 pre-flight can query via search_knowledge.
 
 Env vars (read at call time to keep tests easy):
-  KB_STORE_URL       Full webhook URL (e.g. https://<project>.supabase.co/functions/v1/webhook/knowledge/store)
+  KB_STORE_URL       Full webhook URL (e.g. https://<project>.supabase.co/functions/v1/store-document)
   SUPABASE_ANON_KEY  Bearer token for the Supabase Edge Function
   KB_STORE_ENABLED   Set to 'false' to skip all KB posts (default: 'true')
 """
