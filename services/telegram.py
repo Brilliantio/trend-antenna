@@ -30,8 +30,8 @@ def post_digest_to_telegram(digest_lines: list[dict], run_date: datetime) -> boo
 
     Args:
         digest_lines: List of dicts with keys ``brand_key``, ``brand_name``,
-            and ``top_signal`` (str or None). Caller is responsible for
-            extracting the signal text from the report content.
+            ``top_signal`` (str or None), and optional ``error`` (str). When
+            ``error`` is present the entry renders with a ⚠️ warning prefix.
         run_date: Run reference date used in the message header.
 
     Returns:
@@ -57,9 +57,15 @@ def post_digest_to_telegram(digest_lines: list[dict], run_date: datetime) -> boo
 
     for entry in digest_lines:
         brand_name = entry.get("brand_name", "")
+        error = entry.get("error")
         top_signal = entry.get("top_signal")
-        signal_text = top_signal if top_signal else "no strong signals"
-        message_parts.append(f"*{brand_name}:* {signal_text}")
+        if error:
+            short_error = error[:80]
+            message_parts.append(f"*{brand_name}:* ⚠️ generation failed ({short_error})")
+        elif top_signal:
+            message_parts.append(f"*{brand_name}:* {top_signal}")
+        else:
+            message_parts.append(f"*{brand_name}:* no strong signals")
 
     message_parts.append("")
     message_parts.append("_Review: /pre-flight in Claude Code or query KB_")
