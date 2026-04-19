@@ -147,6 +147,40 @@ class TestPostDigestToTelegramAllBrands(unittest.TestCase):
         text = kwargs["json"]["text"]
         self.assertIn("*Zero to Made:* AI builders dominate", text)
 
+    @patch("services.telegram.requests.post")
+    def test_error_entry_renders_with_warning_emoji(self, mock_post):
+        mock_post.return_value = _make_mock_response(200)
+
+        digest = [
+            {"brand_key": "ztm", "brand_name": "Zero to Made", "top_signal": None, "error": "LLM failed after retries: timeout"},
+        ]
+
+        with patch.dict(os.environ, _BASE_ENV, clear=False):
+            post_digest_to_telegram(digest, REFERENCE_DATE)
+
+        _, kwargs = mock_post.call_args
+        text = kwargs["json"]["text"]
+        self.assertIn("⚠️ generation failed", text)
+        self.assertIn("*Zero to Made:*", text)
+        self.assertNotIn("no strong signals", text)
+
+    @patch("services.telegram.requests.post")
+    def test_error_entry_does_not_suppress_other_brands(self, mock_post):
+        mock_post.return_value = _make_mock_response(200)
+
+        digest = [
+            {"brand_key": "ztm", "brand_name": "Zero to Made", "top_signal": None, "error": "LLM timed out"},
+            {"brand_key": "tch", "brand_name": "The Creator Handbook", "top_signal": "Podcasting surge"},
+        ]
+
+        with patch.dict(os.environ, _BASE_ENV, clear=False):
+            post_digest_to_telegram(digest, REFERENCE_DATE)
+
+        _, kwargs = mock_post.call_args
+        text = kwargs["json"]["text"]
+        self.assertIn("*Zero to Made:* ⚠️ generation failed", text)
+        self.assertIn("*The Creator Handbook:* Podcasting surge", text)
+
 
 class TestPostDigestToTelegramDryRun(unittest.TestCase):
     """TELEGRAM_NOTIFY_ENABLED not 'true' must suppress all network calls."""

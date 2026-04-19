@@ -23,6 +23,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.reddit_collection.collector import RedditDataCollector
 from services.llm_processing.report_processor import ReportProcessor
+from services.llm_processing.clients.base_client import ReportGenerationError
 from services.kb_store import post_report_to_kb
 from services.telegram import post_digest_to_telegram
 from database.mongodb import MongoDBClient
@@ -138,50 +139,68 @@ def generate_report(
         # Get previous report for comparison
         previous_report = mongodb_client.get_latest_report()
 
-        # Generate per-brand reports
-        reports = report_processor.generate_all_brand_reports(
-            all_posts=filtered_posts,
-            previous_report=previous_report,
-            weekly_posts=weekly_posts,
-            monthly_posts=monthly_posts,
-            reference_date=current_time,
-            save_to_file=save_to_file,
-        )
-
-        # Collect report file paths
+        # Per-brand report generation with per-brand error isolation
+        reports = {}
         report_paths = {}
         digest_lines: list[dict] = []
         timestamp = current_time.strftime("%Y%m%d_%H%M%S")
 
-        for brand_key, report in reports.items():
-            if brand_key not in brands_to_process:
-                continue
+        for brand_key in brands_to_process:
+            brand_config = BRANDS[brand_key]
+            brand_name = brand_config["name"]
+            brand_subs = set(brand_config["subreddits"])
 
-            report_dir = os.path.join(
-                REPORT_CONFIG["report_directory"],
-                str(current_time.year),
-                f"{current_time.month:02d}",
-                f"{current_time.day:02d}",
-            )
-            filepath = os.path.join(report_dir, f"trend-antenna_{brand_key}_{timestamp}.md")
-            report_paths[brand_key] = filepath
-            logger.info(f"Report for '{brand_key}': {filepath}")
+            brand_posts = [p for p in filtered_posts if p.get("subreddit") in brand_subs]
+            brand_weekly = [p for p in weekly_posts if p.get("subreddit") in brand_subs]
+            brand_monthly = [p for p in monthly_posts if p.get("subreddit") in brand_subs]
 
-            brand_name = report.get("brand_name", brand_key)
-            digest_lines.append({
-                "brand_key": brand_key,
-                "brand_name": brand_name,
-                "top_signal": _extract_top_signal(report.get("content", "")),
-            })
-
-            # Dual-write: POST report to Supabase KB store (non-fatal on failure)
-            if save_to_file:
-                post_report_to_kb(
-                    content=report.get("content", ""),
+            try:
+                report = report_processor.generate_brand_report(
                     brand_key=brand_key,
-                    brand_name=brand_name,
+                    posts=brand_posts,
+                    previous_report=previous_report,
+                    weekly_posts=brand_weekly,
+                    monthly_posts=brand_monthly,
                     reference_date=current_time,
                 )
+
+                if save_to_file:
+                    report_processor.save_report_to_file(report)
+
+                report_dir = os.path.join(
+                    REPORT_CONFIG["report_directory"],
+                    str(current_time.year),
+                    f"{current_time.month:02d}",
+                    f"{current_time.day:02d}",
+                )
+                filepath = os.path.join(report_dir, f"trend-antenna_{brand_key}_{timestamp}.md")
+                report_paths[brand_key] = filepath
+                reports[brand_key] = report
+                logger.info(f"Report for '{brand_key}': {filepath}")
+
+                digest_lines.append({
+                    "brand_key": brand_key,
+                    "brand_name": brand_name,
+                    "top_signal": _extract_top_signal(report.get("content", "")),
+                })
+
+                # Dual-write: POST report to Supabase KB store (non-fatal on failure)
+                if save_to_file:
+                    post_report_to_kb(
+                        content=report.get("content", ""),
+                        brand_key=brand_key,
+                        brand_name=brand_name,
+                        reference_date=current_time,
+                    )
+
+            except ReportGenerationError as err:
+                logger.error("Brand %s failed: %s", brand_key, err)
+                digest_lines.append({
+                    "brand_key": brand_key,
+                    "brand_name": brand_name,
+                    "top_signal": None,
+                    "error": str(err),
+                })
 
         # Send Telegram digest once per run (non-fatal on failure)
         if save_to_file:
@@ -216,7 +235,7 @@ def generate_report(
         return report_paths
 
     except Exception as e:
-        logger.error(f"Error generating report: {e}", exc_info=True)
+        logger.error(f"Report run failed: {e}", exc_info=True)
         raise
 
 

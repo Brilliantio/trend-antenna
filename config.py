@@ -74,17 +74,20 @@ BRANDS = {
     "fps": {
         "name": "First Person Science",
         "subreddits": [
-            "psychology",
-            "AskDocs",
-            "MentalHealth",
-            "ChronicPain",
-            "neuroscience",
+            "QuantifiedSelf",
+            "Nootropics",
+            "Biohackers",
+            "selfimprovement",
+            "Meditation",
+            "decidingtobebetter",
+            "GetMotivated",
+            "socialskills",
         ],
         "focus": (
-            "Book-concept signals for first-person accounts of scientific, "
-            "medical, and psychological experience — patient memoirs, lab "
-            "researcher accounts, and lived-experience science writing. "
-            "NOTE: Brand scope is provisional and awaits Paul's confirmation."
+            "Book-concept signals for hands-on self-experimenters and citizen "
+            "scientists — quantified self, biohacking, nootropics, and practical "
+            "personal-development communities where readers actively test and "
+            "measure their own experience."
         ),
     },
 }

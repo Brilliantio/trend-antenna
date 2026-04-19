@@ -4,6 +4,7 @@ Base LLM Client
 This module provides an abstract base class for LLM clients.
 All LLM provider implementations should inherit from this base class.
 """
+from __future__ import annotations
 
 import logging
 import re
@@ -22,6 +23,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+class ReportGenerationError(Exception):
+    """Raised when LLM report generation fails after retries."""
 
 
 def retry_on_empty_response(max_retries: int = 3, retry_delay: int = 10):
@@ -542,5 +547,5 @@ class BaseLLMClient(ABC):
 
             return full_report
         except Exception as e:
-            logger.error(f"Error generating report: {e}")
-            return f"Error generating report: {e}"
+            logger.error(f"LLM call failed: {e}")
+            raise ReportGenerationError(f"LLM failed after retries: {e}") from e
